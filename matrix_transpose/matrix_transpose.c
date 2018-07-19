@@ -186,7 +186,7 @@ int main()
         program = build_program(context, device, PROGRAM_FILE);
 
     // Create data buffer
-        global_size = MATSIZE / 2;
+        global_size = MATSIZE;
         local_size = 4;
         num_groups = global_size/local_size;
         input_buffer  = clCreateBuffer(context, CL_MEM_READ_ONLY |

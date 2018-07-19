@@ -1,9 +1,5 @@
-__kernel void matrix_transpose(__global float4* data, 
-      __local float* local_result, __global float* group_result) {
-
-   float sum;
-   float4 input1, input2, sum_vector;
-   uint global_addr, local_addr;
+__kernel void matrix_transpose(__global float* data,
+      __global float* result) {
 
    global_addr = get_global_id(0) * 2;
    input1 = data[global_addr];
