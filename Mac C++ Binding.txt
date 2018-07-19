@@ -1,0 +1,54 @@
+https://rageandqq.github.io/blog/2018/03/09/opencl-mac-cpp.html
+
+Sameer Chitley
+OpenCL C++ Bindings on Mac OS X
+MARCH 9, 2018
+
+A course I’m currently taking required me to optimize some C++ code using OpenCL, a framework for writing parallelized programs that run across “heterogeneous systems” - be it your CPU, GPU, and other types of processing units.
+
+The skeleton code supplied to me was configured to work with Linux C++ bindings and run on the school’s environment where these bindings were already configured - I’d have to ssh into the environment and execute the code remotely. To actually complete my assignment I’d either have to develop locally and copy my code over whenever I wished to test it, or develop remotely. While this was a doable solution, I preferred to write and run the code on my Macbook (running OS X High Sierra) and not have to rely on another environment to test simple changes.
+
+Getting OpenCL to work with C++ bindings took a bit of scouring the web. Most of the tutorials and how-to posts targeted and explained setup of C bindings, and not C++, so I figured I’d share a simple how-to for anyone else who might run into this issue.
+
+Setup
+Mac OS X should already come with the OpenCL framework installed. You can confirm this by checking for it’s existence:
+
+ls /System/Library/Frameworks/OpenCL.framework
+Disable SIP
+We’re going to need to download the appropriate headers to the Headers directory of the framework. If you’re running a version of OS X Yosemite or lower, you can skip to the next section. However, if you’re running El Capitan or higher, you’ll notice that attempting to copy anything into this directory will be restricted, even with root access. This is due to System Integrity Protection (SIP), a new security feature. Thanks, Apple ಠ_ಠ.
+
+To disable this, you’ll need to boot into Recovery Mode. Do this by restarting your computer while holding down Command(⌘)+R during the boot phase. Once in Recovery Mode, select Utilities > Terminal and disable SIP using:
+
+csrutil disable
+You’ll need to reboot your machine again for the changes to take effect.
+
+(To re-enable SIP after installing, you can repeat the process using csrutil enable instead of disable. Restart to apply changes.)
+
+Install Headers
+Now that SIP is disabled, you can download the OpenCL .hpp header file to the OpenCL framework headers. Head over to the Khronos OpenCL Registry page and download the cl.hpp header. Then, copy the header to the directory Headers directory. You’ll need root access to modify this folder.
+
+sudo cp cl.hpp /System/Library/Frameworks/OpenCL.framework/Headers
+That’s it! The bindings are added and ready to use.
+
+Usage
+While the Linux bindings are included using #include <CL/cl.hpp>, the Mac OS bindings require you to use:
+
+#include <OpenCL/cl.hpp>
+If you want your code to work on both platforms, simply add an #ifdef __APPLE__ or the likes and take advantage of predefined compiler macros to #include the right header for the platform.
+
+Make sure to link OpenCL when compiling your code. With g++, the argument is:
+
+g++ main.cpp -framework OpenCL
+Summary
+(Step 1 needed for OS X El Capitan and above)
+
+Disable SIP (Boot into Recovery Mode, csrutil disable in Terminal, and reboot)
+Download the cl.hpp header from the Khronos OpenCL registry
+Copy the header to /System/Library/Frameworks/OpenCL.framework/Headers
+Use the bindings (#include <OpenCL/cl.hpp>) in your source code
+Compile your code with the -framework OpenCL argument (on g++ at least)
+Thanks for taking the time to check this post out. Hope it saves you some time and trouble with your OpenCL setup.
+Happy kerneling!
+
+
+Made with  in Waterloo, Canada
