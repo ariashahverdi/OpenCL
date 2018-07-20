@@ -45,6 +45,23 @@ cl_device_id create_device() {
         exit(1);
     }
     printf("Connecting to %s ...\n", device_name);
+
+    // Get Global Memory Size
+    cl_ulong size;
+    err = clGetDeviceInfo(device_id, CL_DEVICE_GLOBAL_MEM_SIZE, sizeof(cl_ulong), &size, 0);
+    if (err != CL_SUCCESS)     {
+        printf("Error: Failed to get device Info!\n");
+        exit(1);
+    }
+    printf("Global memory size is %llu bytes\n", size);
+    
+    // Get Local Memory
+    err = clGetDeviceInfo(device_id, CL_DEVICE_LOCAL_MEM_SIZE, sizeof(cl_ulong), &size, 0);
+    if (err != CL_SUCCESS)     {
+        printf("Error: Failed to get device Info!\n");
+        exit(1);
+    }
+    printf("Local memory size is %llu bytes\n", size);
     
     return device_id;
 }
