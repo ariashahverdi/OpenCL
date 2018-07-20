@@ -3,8 +3,8 @@
 #include <stdlib.h>
 #include <OpenCL/cl.h>
 
-#define PROGRAM_FILE "transposeMatrix_kernel.cl"
-#define KERNEL_FUNC "matrix_transpose"
+#define PROGRAM_FILE "transposeMatrix.cl"
+#define KERNEL_FUNC "matrixTranspose"
 
 #define DATA_SIZE 65536
 #define ROWS 16
@@ -110,41 +110,42 @@ int main()
     cl_uint height = ROWS;
 
     // OpenCL host variables go here:
-        cl_device_id device;
-        cl_context context;
-        cl_program program;
-        cl_kernel kernel;
-        cl_command_queue queue;
-        cl_int i, j, err;
-        size_t local_size, global_size;
+    cl_device_id device;
+    cl_context context;
+    cl_program program;
+    cl_kernel kernel;
+    cl_command_queue queue;
+    cl_int i, j, err;
+    size_t local_size, global_size;
     
     // Data and buffers
-        cl_mem input_buffer, output_buffer;
-        cl_int num_groups;
-    
+    cl_mem input_buffer, output_buffer;
+    size_t global[2];
+    cl_int num_groups;
+
     // variables used to read kernel source file
-        FILE *fp;
-        long filelen;
-        long readlen;
-        char *kernel_src;  // char string to hold kernel source
+    FILE *fp;
+    long filelen;
+    long readlen;
+    char *kernel_src;  // char string to hold kernel source
    
     // initialize inputMatrix with some data and print it
-        int x, y;
-        int data=0;
-        inputMatrix = malloc(sizeof(cl_float)*width*height);
-        results = malloc(sizeof(cl_float)*width*height);
-        printf("Input Matrix\n");
-        for(y=0;y<height;y++)
+    int x, y;
+    int data=0;
+    inputMatrix = malloc(sizeof(cl_float)*width*height);
+    results = malloc(sizeof(cl_float)*width*height);
+    printf("Input Matrix\n");
+    for(y=0;y<height;y++)
+    {
+        for(x=0;x<width;x++)
         {
-            for(x=0;x<width;x++)
-            {
-                inputMatrix[y*height+x]= data;
-                results[y*height+x]=0;
-                data++;
-                printf("%.2f, ",inputMatrix[y*height+x]);
-            }
-            printf("\n");
+            inputMatrix[y*height+x]= data;
+            results[y*height+x]=0;
+            data++;
+            printf("%.2f, ",inputMatrix[y*height+x]);
         }
+        printf("\n");
+    }
     
     /*
     // read the kernel
@@ -167,82 +168,76 @@ int main()
     // ----- Insert OpenCL host source here ----
     
     // Create device and context
-        device = create_device();
-        context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
-        if (!context)
-        {
-            perror("Error: Failed to create a compute context!\n");
-            return EXIT_FAILURE;
-        }
+    device = create_device();
+    context = clCreateContext(NULL, 1, &device, NULL, NULL, &err);
+    if (!context)
+    {
+        perror("Error: Failed to create a compute context!\n");
+        return EXIT_FAILURE;
+    }
     
     // Create a command queue
-        queue = clCreateCommandQueue(context, device, 0, &err);
-        if(err < 0) {
-            perror("Couldn't create a command queue");
-            exit(1);
-        };
+    queue = clCreateCommandQueue(context, device, 0, &err);
+    if(err < 0) {
+        perror("Couldn't create a command queue");
+        exit(1);
+    };
 
     // Build program
-        program = build_program(context, device, PROGRAM_FILE);
+    program = build_program(context, device, PROGRAM_FILE);
 
     // Create data buffer
-        global_size = MATSIZE;
-        local_size = 4;
-        num_groups = global_size/local_size;
-        input_buffer  = clCreateBuffer(context, CL_MEM_READ_ONLY |
-                                      CL_MEM_COPY_HOST_PTR, MATSIZE * sizeof(float), inputMatrix, &err);
-        output_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE |
-                                      CL_MEM_COPY_HOST_PTR, MATSIZE * sizeof(float), results, &err);
-        if(err < 0) {
-            perror("Couldn't create a buffer");
-            exit(1);
-        };
+    global_size = MATSIZE;
+    local_size = 4;
+    num_groups = global_size/local_size;
+    input_buffer  = clCreateBuffer(context, CL_MEM_READ_ONLY |
+                                  CL_MEM_COPY_HOST_PTR, MATSIZE * sizeof(cl_float), inputMatrix, &err);
+    output_buffer = clCreateBuffer(context, CL_MEM_READ_WRITE |
+                                  CL_MEM_COPY_HOST_PTR, MATSIZE * sizeof(cl_float), results, &err);
+    if(err < 0) {
+        perror("Couldn't create a buffer");
+        exit(1);
+    };
     
     // Create a kernel
-        kernel = clCreateKernel(program, KERNEL_FUNC, &err);
-        if(err < 0) {
-            perror("Couldn't create a kernel");
-            exit(1);
-        };
+    kernel = clCreateKernel(program, KERNEL_FUNC, &err);
+    if(err < 0) {
+        perror("Couldn't create a kernel");
+        exit(1);
+    };
     
-    // Create kernel arguments
-        err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &input_buffer);
-        err |= clSetKernelArg(kernel, 1, local_size * sizeof(float), NULL);
-        err |= clSetKernelArg(kernel, 2, sizeof(cl_mem), &output_buffer);
-        if(err < 0) {
-            perror("Couldn't create a kernel argument");
-            exit(1);
-        }
+    // Set kernel arguments
+    err = clSetKernelArg(kernel, 0, sizeof(cl_mem), &input_buffer);
+    err |= clSetKernelArg(kernel, 1, sizeof(cl_mem), &output_buffer);
+    err |= clSetKernelArg(kernel, 2, sizeof(cl_uint), &width);
+    err |= clSetKernelArg(kernel, 3, sizeof(cl_uint), &height);
+    if(err < 0) {
+        perror("Couldn't create a kernel argument");
+        exit(1);
+    }
+    
+    global[0] = width;
+    global[1] = height;
     
     // Enqueue kernel
-        err = clEnqueueNDRangeKernel(queue, kernel, 1, NULL, &global_size,
-                                     &local_size, 0, NULL, NULL);
-        if(err < 0) {
-            perror("Couldn't enqueue the kernel");
-            exit(1);
-        }
+    err = clEnqueueNDRangeKernel(queue, kernel, 2, NULL, global,
+                                 NULL, 0, NULL, NULL);
+    if(err < 0) {
+        perror("Couldn't enqueue the kernel");
+        exit(1);
+    }
     
-    /* Read the kernel's output */
-        err = clEnqueueReadBuffer(queue, output_buffer, CL_TRUE, 0,
-                                  sizeof(results), results, 0, NULL, NULL);
-        if(err < 0) {
-            perror("Couldn't read the buffer");
-            exit(1);
-        }
-
-    // Deallocate resources
-        clReleaseKernel(kernel);
-        clReleaseMemObject(output_buffer);
-        clReleaseMemObject(input_buffer);
-        clReleaseCommandQueue(queue);
-        clReleaseProgram(program);
-        clReleaseContext(context);
+    // wait for the command to finish
+    clFinish(queue);
     
-    // ----- End of OpenCL host section ----
+    // Read the kernel's output
+    err = clEnqueueReadBuffer(queue, output_buffer, CL_TRUE, 0,
+                              sizeof(cl_float)*width*height, results, 0, NULL, NULL);
+    if(err < 0) {
+        perror("Couldn't read the buffer");
+        exit(1);
+    }
 
-    
-
-   
     printf("Transposed Matrix\n");
     for(y=0;y<height;y++)
     {
@@ -252,6 +247,18 @@ int main()
         }
         printf("\n");
     }
+    
+    // Deallocate resources
+    clReleaseKernel(kernel);
+    clReleaseMemObject(output_buffer);
+    clReleaseMemObject(input_buffer);
+    clReleaseCommandQueue(queue);
+    clReleaseProgram(program);
+    clReleaseContext(context);
+    
+    // ----- End of OpenCL host section ----
+
+
     
     
     return 0;
